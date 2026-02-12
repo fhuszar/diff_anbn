@@ -1,0 +1,33 @@
+# Small/fast config for testing and debugging
+name: anbn_small
+
+language:
+  name: anbn
+  min_n: 1
+  max_n: 5
+
+model:
+  d_model: 64
+  n_heads: 2
+  n_layers: 2
+  dropout: 0.1
+  max_seq_len: 32
+
+diffusion:
+  noise_schedule: cosine
+  num_timesteps: 50
+
+training:
+  batch_size: 32
+  learning_rate: 1.0e-3
+  weight_decay: 0.01
+  num_steps: 5000
+  warmup_steps: 100
+  grad_clip: 1.0
+  eval_every: 500
+  save_every: 1000
+  log_every: 50
+  num_eval_samples: 64
+  seed: 42
+
+device: auto
