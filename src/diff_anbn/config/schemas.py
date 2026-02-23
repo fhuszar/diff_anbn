@@ -50,6 +50,15 @@ class TrainingConfig(BaseModel):
     seed: int = Field(default=42, description="Random seed")
 
 
+class WandBConfig(BaseModel):
+    """Configuration for Weights & Biases logging."""
+
+    enabled: bool = Field(default=False, description="Enable wandb logging")
+    project: str = Field(default="diff_anbn", description="wandb project name")
+    entity: str | None = Field(default=None, description="wandb entity/team")
+    tags: list[str] = Field(default_factory=list, description="Tags for the run")
+
+
 class ExperimentConfig(BaseModel):
     """Complete experiment configuration."""
 
@@ -60,6 +69,7 @@ class ExperimentConfig(BaseModel):
     model: ModelConfig = Field(default_factory=ModelConfig)
     diffusion: DiffusionConfig = Field(default_factory=DiffusionConfig)
     training: TrainingConfig = Field(default_factory=TrainingConfig)
+    wandb: WandBConfig = Field(default_factory=WandBConfig)
 
     device: str = Field(default="auto", description="Device ('auto', 'cpu', 'cuda', 'mps')")
 
@@ -77,7 +87,8 @@ class ExperimentConfig(BaseModel):
         import yaml
 
         with open(path, "w") as f:
-            yaml.dump(self.model_dump(), f, default_flow_style=False)
+            # Use mode="json" to convert Path to str
+            yaml.dump(self.model_dump(mode="json"), f, default_flow_style=False)
 
     def get_device(self) -> str:
         """Get the actual device to use."""

@@ -12,6 +12,7 @@ dependencies = [
     "matplotlib>=3.7",
     "tqdm>=4.65",
     "x-transformers>=1.30",
+    "wandb>=0.15",
 ]
 
 [project.optional-dependencies]
@@ -19,6 +20,7 @@ dev = [
     "ruff>=0.1.0",
     "pytest>=7.0",
     "mypy>=1.0",
+    "types-PyYAML>=6.0",
 ]
 
 [build-system]

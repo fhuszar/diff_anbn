@@ -15,7 +15,7 @@ from tqdm import tqdm
 from diff_anbn.config import ExperimentConfig
 from diff_anbn.diffusion import MDLM, sample
 from diff_anbn.diffusion.noise_schedule import get_schedule
-from diff_anbn.languages import FormalLanguage, Tokenizer, get_language
+from diff_anbn.languages import Tokenizer, get_language
 from diff_anbn.models import DiffusionTransformer
 
 from .data import create_dataloader
@@ -103,6 +103,19 @@ class Trainer:
         # Log file
         self.log_file = open(self.log_dir / "metrics.jsonl", "a")
 
+        # Initialize wandb if enabled
+        self.wandb_run = None
+        if config.wandb.enabled:
+            import wandb
+
+            self.wandb_run = wandb.init(
+                project=config.wandb.project,
+                entity=config.wandb.entity,
+                name=config.name,
+                config=config.model_dump(mode="json"),
+                tags=config.wandb.tags,
+            )
+
         print(f"Model parameters: {self.model.get_num_params():,}")
         print(f"Device: {self.device}")
 
@@ -179,6 +192,12 @@ class Trainer:
         self._save_checkpoint("final")
 
         self.log_file.close()
+
+        # Finish wandb run
+        if self.wandb_run:
+            self.wandb_run.summary["best_accuracy"] = self.state.best_accuracy
+            self.wandb_run.finish()
+
         print(f"\nTraining complete. Best accuracy: {self.state.best_accuracy:.4f}")
 
     def _train_step(self, batch: dict[str, torch.Tensor]) -> dict[str, float]:
@@ -206,10 +225,10 @@ class Trainer:
         self.scheduler.step()
 
         return {
-            "loss": loss.item(),
-            "accuracy": result["accuracy"].item(),
-            "mask_rate": result["mask_rate"].item(),
-            "lr": self.scheduler.get_last_lr()[0],
+            "loss": float(loss.item()),
+            "accuracy": float(result["accuracy"].item()),
+            "mask_rate": float(result["mask_rate"].item()),
+            "lr": float(self.scheduler.get_last_lr()[0]),
         }
 
     @torch.no_grad()
@@ -258,7 +277,7 @@ class Trainer:
     def _log_metrics(
         self, step: int, metrics: dict[str, float], prefix: str = "train"
     ) -> None:
-        """Log metrics to file."""
+        """Log metrics to file and wandb."""
         log_entry = {
             "step": step,
             "prefix": prefix,
@@ -268,6 +287,13 @@ class Trainer:
         self.log_file.flush()
 
         self.state.metrics_history.append(log_entry)
+
+        # Log to wandb
+        if self.wandb_run:
+            self.wandb_run.log(
+                {f"{prefix}/{k}": v for k, v in metrics.items()},
+                step=step,
+            )
 
     def _save_checkpoint(self, name: str) -> None:
         """Save model checkpoint."""
@@ -281,6 +307,14 @@ class Trainer:
         }
         path = self.checkpoint_dir / f"{name}.pt"
         torch.save(checkpoint, path)
+
+        # Save best model as wandb artifact
+        if self.wandb_run and name == "best":
+            import wandb
+
+            artifact = wandb.Artifact(f"{self.config.name}-best", type="model")
+            artifact.add_file(str(path))
+            self.wandb_run.log_artifact(artifact)
 
     def load_checkpoint(self, path: str | Path) -> None:
         """Load model checkpoint."""

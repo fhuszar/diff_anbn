@@ -30,4 +30,9 @@ training:
   num_eval_samples: 64
   seed: 42
 
+wandb:
+  enabled: false  # Set to true to enable
+  project: diff_anbn
+  tags: [anbn, small, debug]
+
 device: auto
